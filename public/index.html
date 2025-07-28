@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Geohashing API - Interactive Playground</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Custom CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            padding: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+        }
+        
+        .result-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .result-container pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .endpoint-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .endpoint-header {
+            background: #f8fafc;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .endpoint-method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        
+        .method-get { background: #dcfce7; color: #166534; }
+        .method-post { background: #dbeafe; color: #1e40af; }
+        
+        .endpoint-url {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom-color: #4f46e5;
+            color: #4f46e5;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-btn {
+            background: #e0e7ff;
+            color: #4338ca;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quick-btn:hover {
+            background: #c7d2fe;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 Geohashing API Playground</h1>
+            <p>Interactive documentation and testing environment for H3 hexagonal zones</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Quick Testing Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    🎯 Quick Zone Lookup
+                </div>
+                <div class="panel-content">
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="useMyLocation()">📍 Use My Location</button>
+                        <button class="quick-btn" onclick="useExample('sf')">🌉 San Francisco</button>
+                        <button class="quick-btn" onclick="useExample('nyc')">🗽 New York</button>
+                        <button class="quick-btn" onclick="useExample('london')">🏰 London</button>
+                        <button class="quick-btn" onclick="useExample('tokyo')">🗼 Tokyo</button>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" id="quickLat" step="any" placeholder="37.7749" value="37.7749">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" id="quickLng" step="any" placeholder="-122.4194" value="-122.4194">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Resolution (0-15)</label>
+                        <select id="quickResolution">
+                            <option value="0">0 - Country level (~4.25M km²)</option>
+                            <option value="3">3 - State level (~12K km²)</option>
+                            <option value="6">6 - City level (~36 km²)</option>
+                            <option value="9" selected>9 - Neighborhood level (~0.105 km²)</option>
+                            <option value="12">12 - Building level (~308 m²)</option>
+                            <option value="15">15 - Room level (~0.9 m²)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" onclick="getZoneQuick()">
+                        <span id="quickLoading" style="display:none;" class="loading"></span>
+                        Get Zone Hash
+                    </button>
+                    
+                    <div id="quickResult" class="result-container" style="display:none;">
+                        <h4>Zone Information</h4>
+                        <pre id="quickResultData"></pre>
+                        <button class="btn btn-secondary" onclick="showOnMap()" style="margin-top: 10px;">
+                            🗺️ Show on Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    🗺️ Interactive Map
+                </div>
+                <div class="panel-content">
+                    <div class="info-box">
+                        <h4>How to use:</h4>
+                        <p>Click anywhere on the map to get the zone hash for that location. Hexagon boundaries will be displayed based on the selected resolution.</p>
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API Endpoints Documentation -->
+        <div class="endpoint-section">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('coordinates')">📍 Coordinates to Zone</div>
+                <div class="tab" onclick="switchTab('hash')">🔢 Hash to Info</div>
+                <div class="tab" onclick="switchTab('neighbors')">🔄 Neighbors</div>
+                <div class="tab" onclick="switchTab('area')">📦 Area Search</div>
+                <div class="tab" onclick="switchTab('polygon')">📐 Polygon</div>
+            </div>
+            
+            <!-- Coordinates to Zone Tab -->
+            <div id="coordinates" class="tab-content active">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-url">/zone/:lat/:lng/:resolution</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px;">Convert latitude/longitude coordinates to a hexagonal zone hash.</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" id="coordLat" step="any" placeholder="37.7749">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" id="coordLng" step="any" placeholder="-122.4194">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Resolution</label>
+                        <input type="number" id="coordRes" min="0" max="15" placeholder="9">
+                    </div>
+                    
+                    <button class="btn" onclick="testCoordinatesToZone()">Test Endpoint</button>
+                    
+                    <div id="coordResult" class="result-container" style="display:none;">
+                        <pre id="coordResultData"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Hash to Info Tab -->
+            <div id="hash" class="tab-content">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-url">/zone/:hash/info</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px;">Get detailed information about a zone from its hash.</p>
+                    
+                    <div class="form-group">
+                        <label>Zone Hash</label>
+                        <input type="text" id="hashInput" placeholder="892830826cffffff">
+                    </div>
+                    
+                    <button class="btn" onclick="testHashToInfo()">Test Endpoint</button>
+                    
+                    <div id="hashResult" class="result-container" style="display:none;">
+                        <pre id="hashResultData"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Neighbors Tab -->
+            <div id="neighbors" class="tab-content">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-url">/zone/:hash/neighbors?k=1</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px;">Get neighboring zones within k rings of distance.</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Zone Hash</label>
+                            <input type="text" id="neighborHash" placeholder="892830826cffffff">
+                        </div>
+                        <div class="form-group">
+                            <label>Ring Distance (k)</label>
+                            <input type="number" id="neighborK" min="1" max="10" placeholder="1" value="1">
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="testNeighbors()">Test Endpoint</button>
+                    
+                    <div id="neighborResult" class="result-container" style="display:none;">
+                        <pre id="neighborResultData"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Area Search Tab -->
+            <div id="area" class="tab-content">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-url">/zones/area</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px;">Get all zones within a bounding box area.</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Min Latitude</label>
+                            <input type="number" id="areaMinLat" step="any" placeholder="37.7">
+                        </div>
+                        <div class="form-group">
+                            <label>Min Longitude</label>
+                            <input type="number" id="areaMinLng" step="any" placeholder="-122.5">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Max Latitude</label>
+                            <input type="number" id="areaMaxLat" step="any" placeholder="37.8">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Longitude</label>
+                            <input type="number" id="areaMaxLng" step="any" placeholder="-122.3">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Resolution</label>
+                        <input type="number" id="areaRes" min="0" max="15" placeholder="9" value="9">
+                    </div>
+                    
+                    <button class="btn" onclick="testAreaSearch()">Test Endpoint</button>
+                    
+                    <div id="areaResult" class="result-container" style="display:none;">
+                        <pre id="areaResultData"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Polygon Tab -->
+            <div id="polygon" class="tab-content">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-post">POST</span>
+                    <span class="endpoint-url">/zones/polygon</span>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px;">Get zones that intersect with a custom polygon.</p>
+                    
+                    <div class="form-group">
+                        <label>Polygon Coordinates (JSON array of [lat, lng] pairs)</label>
+                        <textarea id="polygonCoords" rows="6" placeholder='[[37.7749, -122.4194], [37.7849, -122.4094], [37.7649, -122.4094], [37.7749, -122.4194]]'>[[37.7749, -122.4194], [37.7849, -122.4094], [37.7649, -122.4094], [37.7749, -122.4194]]</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Resolution</label>
+                        <input type="number" id="polygonRes" min="0" max="15" placeholder="9" value="9">
+                    </div>
+                    
+                    <button class="btn" onclick="testPolygonSearch()">Test Endpoint</button>
+                    
+                    <div id="polygonResult" class="result-container" style="display:none;">
+                        <pre id="polygonResultData"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let currentZoneData = null;
+        let hexagonLayer = null;
+        
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([37.7749, -122.4194], 10);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add click handler
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+                
+                document.getElementById('quickLat').value = lat.toFixed(6);
+                document.getElementById('quickLng').value = lng.toFixed(6);
+                
+                getZoneQuick();
+            });
+        }
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Quick location examples
+        function useExample(location) {
+            const examples = {
+                sf: { lat: 37.7749, lng: -122.4194 },
+                nyc: { lat: 40.7128, lng: -74.0060 },
+                london: { lat: 51.5074, lng: -0.1278 },
+                tokyo: { lat: 35.6762, lng: 139.6503 }
+            };
+            
+            if (examples[location]) {
+                document.getElementById('quickLat').value = examples[location].lat;
+                document.getElementById('quickLng').value = examples[location].lng;
+                map.setView([examples[location].lat, examples[location].lng], 10);
+            }
+        }
+        
+        // Use current location
+        function useMyLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    document.getElementById('quickLat').value = lat.toFixed(6);
+                    document.getElementById('quickLng').value = lng.toFixed(6);
+                    map.setView([lat, lng], 12);
+                    
+                    getZoneQuick();
+                }, function(error) {
+                    console.error('Error getting location: ', error);
+                    alert('Error getting location: ' + error.message);
+                });
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+        
+        // Quick zone lookup
+        async function getZoneQuick() {
+            const lat = document.getElementById('quickLat').value;
+            const lng = document.getElementById('quickLng').value;
+            const resolution = document.getElementById('quickResolution').value;
+            
+            if (!lat || !lng) {
+                alert('Please enter latitude and longitude');
+                return;
+            }
+            
+            const loading = document.getElementById('quickLoading');
+            const result = document.getElementById('quickResult');
+            const resultData = document.getElementById('quickResultData');
+            
+            loading.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch(`/zone/${lat}/${lng}/${resolution}`);
+                const data = await response.json();
+                
+                currentZoneData = data;
+                resultData.textContent = JSON.stringify(data, null, 2);
+                result.style.display = 'block';
+                
+                // Also get boundary info for map display
+                if (data.hash) {
+                    const boundaryResponse = await fetch(`/zone/${data.hash}/boundary`);
+                    const boundaryData = await boundaryResponse.json();
+                    currentZoneData.boundary = boundaryData.boundary;
+                }
+                
+            } catch (error) {
+                resultData.textContent = 'Error: ' + error.message;
+                result.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        // Show current zone on map
+        function showOnMap() {
+            if (!currentZoneData) return;
+            
+            // Clear previous hexagon
+            if (hexagonLayer) {
+                map.removeLayer(hexagonLayer);
+            }
+            
+            // Center map on zone
+            map.setView([currentZoneData.center.lat, currentZoneData.center.lng], 12);
+            
+            // Draw hexagon boundary if available
+            if (currentZoneData.boundary) {
+                const latLngs = currentZoneData.boundary.map(coord => [coord.lat, coord.lng]);
+                
+                hexagonLayer = L.polygon(latLngs, {
+                    color: '#4f46e5',
+                    fillColor: '#818cf8',
+                    fillOpacity: 0.3,
+                    weight: 2
+                }).addTo(map);
+                
+                // Add popup with zone info
+                hexagonLayer.bindPopup(`
+                    <strong>Zone Hash:</strong> ${currentZoneData.hash}<br>
+                    <strong>Resolution:</strong> ${currentZoneData.resolution}<br>
+                    <strong>Center:</strong> ${currentZoneData.center.lat.toFixed(6)}, ${currentZoneData.center.lng.toFixed(6)}
+                `);
+            }
+            
+            // Add marker at center
+            L.marker([currentZoneData.center.lat, currentZoneData.center.lng])
+                .addTo(map)
+                .bindPopup(`Zone: ${currentZoneData.hash}`)
+                .openPopup();
+        }
+        
+        // API endpoint testing functions
+        async function testCoordinatesToZone() {
+            const lat = document.getElementById('coordLat').value;
+            const lng = document.getElementById('coordLng').value;
+            const resolution = document.getElementById('coordRes').value;
+            
+            await testEndpoint(`/zone/${lat}/${lng}/${resolution}`, 'coordResult', 'coordResultData');
+        }
+        
+        async function testHashToInfo() {
+            const hash = document.getElementById('hashInput').value;
+            await testEndpoint(`/zone/${hash}/info`, 'hashResult', 'hashResultData');
+        }
+        
+        async function testNeighbors() {
+            const hash = document.getElementById('neighborHash').value;
+            const k = document.getElementById('neighborK').value;
+            await testEndpoint(`/zone/${hash}/neighbors?k=${k}`, 'neighborResult', 'neighborResultData');
+        }
+        
+        async function testAreaSearch() {
+            const minLat = document.getElementById('areaMinLat').value;
+            const minLng = document.getElementById('areaMinLng').value;
+            const maxLat = document.getElementById('areaMaxLat').value;
+            const maxLng = document.getElementById('areaMaxLng').value;
+            const resolution = document.getElementById('areaRes').value;
+            
+            const url = `/zones/area?minLat=${minLat}&minLng=${minLng}&maxLat=${maxLat}&maxLng=${maxLng}&resolution=${resolution}`;
+            await testEndpoint(url, 'areaResult', 'areaResultData');
+        }
+        
+        async function testPolygonSearch() {
+            const polygonStr = document.getElementById('polygonCoords').value;
+            const resolution = document.getElementById('polygonRes').value;
+            
+            try {
+                const polygon = JSON.parse(polygonStr);
+                const response = await fetch('/zones/polygon', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ polygon, resolution: parseInt(resolution) })
+                });
+                
+                const data = await response.json();
+                document.getElementById('polygonResultData').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('polygonResult').style.display = 'block';
+                
+            } catch (error) {
+                document.getElementById('polygonResultData').textContent = 'Error: ' + error.message;
+                document.getElementById('polygonResult').style.display = 'block';
+            }
+        }
+        
+        // Generic endpoint testing
+        async function testEndpoint(url, resultId, dataId) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                document.getElementById(dataId).textContent = JSON.stringify(data, null, 2);
+                document.getElementById(resultId).style.display = 'block';
+                
+            } catch (error) {
+                document.getElementById(dataId).textContent = 'Error: ' + error.message;
+                document.getElementById(resultId).style.display = 'block';
+            }
+        }
+        
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+    </script>
+</body>
+</html> 
