@@ -1,0 +1,741 @@
+openapi: 3.1.0
+info:
+  title: Geohashing API
+  description: |
+    A powerful REST API that splits the world map into hexagonal zones using **H3** (Uber's Hexagonal Hierarchical Spatial Index). 
+    Each zone gets a unique hash identifier that you can use to efficiently organize and query geographical data.
+    
+    ## How H3 Works
+    H3 creates a hierarchical grid of hexagonal cells covering the Earth. Higher resolution numbers create smaller, more precise hexagons:
+    - **Resolution 0**: ~4.25M km² per hexagon (country level)
+    - **Resolution 9**: ~0.105 km² per hexagon (neighborhood level) 
+    - **Resolution 15**: ~0.9 m² per hexagon (room level)
+    
+    Each hexagon has a unique 15-character hash like `892830826cffffff` that encodes its position.
+  version: 1.0.0
+  contact:
+    name: Geohashing API
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:3000
+    description: Development server
+paths:
+  /:
+    get:
+      summary: Serve web UI
+      description: Returns the HTML interface for the API documentation
+      responses:
+        '200':
+          description: HTML page with API documentation
+          content:
+            text/html:
+              schema:
+                type: string
+  
+  /api:
+    get:
+      summary: Get API documentation
+      description: Returns JSON documentation with all available endpoints and examples
+      responses:
+        '200':
+          description: API documentation in JSON format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiDocumentation'
+  
+  /zone/{lat}/{lng}/{resolution}:
+    get:
+      summary: Get zone hash for coordinates
+      description: Convert latitude/longitude coordinates to a unique H3 zone hash at the specified resolution
+      parameters:
+        - name: lat
+          in: path
+          required: true
+          description: Latitude (-90 to 90)
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 37.7749
+        - name: lng
+          in: path
+          required: true
+          description: Longitude (-180 to 180)
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: -122.4194
+        - name: resolution
+          in: path
+          required: true
+          description: H3 resolution level (0-15)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 15
+          example: 9
+      responses:
+        '200':
+          description: Zone hash and metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneResponse'
+        '400':
+          description: Invalid coordinates or resolution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zone/{hash}/center:
+    get:
+      summary: Get zone center coordinates
+      description: Get the center coordinates of a zone from its H3 hash
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: Valid H3 cell hash
+          schema:
+            type: string
+          example: 892830826cffffff
+      responses:
+        '200':
+          description: Zone center coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneCenterResponse'
+        '400':
+          description: Invalid H3 hash
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zone/{hash}/boundary:
+    get:
+      summary: Get zone boundary polygon
+      description: Get the hexagonal boundary polygon coordinates of a zone
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: Valid H3 cell hash
+          schema:
+            type: string
+          example: 892830826cffffff
+      responses:
+        '200':
+          description: Zone boundary polygon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneBoundaryResponse'
+        '400':
+          description: Invalid H3 hash
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zone/{hash}/neighbors:
+    get:
+      summary: Get neighboring zones
+      description: Get zones within k rings of distance from the specified zone
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: Valid H3 cell hash
+          schema:
+            type: string
+          example: 892830826cffffff
+        - name: k
+          in: query
+          required: false
+          description: Ring distance (1-10, default 1)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 1
+          example: 1
+      responses:
+        '200':
+          description: Neighboring zones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NeighborsResponse'
+        '400':
+          description: Invalid H3 hash or k value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zone/{hash}/info:
+    get:
+      summary: Get detailed zone information
+      description: Get comprehensive information about a zone including neighbors, parent, and children
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: Valid H3 cell hash
+          schema:
+            type: string
+          example: 892830826cffffff
+      responses:
+        '200':
+          description: Detailed zone information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneInfoResponse'
+        '400':
+          description: Invalid H3 hash
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zones/area:
+    get:
+      summary: Get zones within bounding box
+      description: Get all zones that intersect with a rectangular bounding box area
+      parameters:
+        - name: minLat
+          in: query
+          required: true
+          description: Minimum latitude
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 37.7
+        - name: minLng
+          in: query
+          required: true
+          description: Minimum longitude
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: -122.5
+        - name: maxLat
+          in: query
+          required: true
+          description: Maximum latitude
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 37.8
+        - name: maxLng
+          in: query
+          required: true
+          description: Maximum longitude
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: -122.3
+        - name: resolution
+          in: query
+          required: true
+          description: H3 resolution level (0-15)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 15
+          example: 9
+      responses:
+        '200':
+          description: Zones within the bounding box
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AreaZonesResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zones/radius:
+    get:
+      summary: Get zones within radius
+      description: Get zones within a specified radius (in meters) from a center point
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Center latitude
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 37.7749
+        - name: lng
+          in: query
+          required: true
+          description: Center longitude
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: -122.4194
+        - name: radius
+          in: query
+          required: true
+          description: Radius in meters
+          schema:
+            type: number
+            minimum: 0
+          example: 1000
+        - name: resolution
+          in: query
+          required: true
+          description: H3 resolution level (0-15)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 15
+          example: 9
+      responses:
+        '200':
+          description: Zones within the radius
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RadiusZonesResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /zones/polygon:
+    post:
+      summary: Get zones intersecting polygon
+      description: Get all zones that intersect with a custom polygon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolygonRequest'
+      responses:
+        '200':
+          description: Zones intersecting the polygon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolygonZonesResponse'
+        '400':
+          description: Invalid polygon or resolution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /resolutions:
+    get:
+      summary: Get H3 resolution information
+      description: Get information about all available H3 resolution levels and their approximate sizes
+      responses:
+        '200':
+          description: Resolution information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutionsResponse'
+
+components:
+  schemas:
+    Coordinate:
+      type: object
+      properties:
+        lat:
+          type: number
+          description: Latitude
+        lng:
+          type: number
+          description: Longitude
+      required:
+        - lat
+        - lng
+    
+    ZoneHash:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: H3 zone hash
+        center:
+          $ref: '#/components/schemas/Coordinate'
+      required:
+        - hash
+        - center
+    
+    ZoneResponse:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: H3 zone hash
+        input:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+            resolution:
+              type: integer
+        center:
+          $ref: '#/components/schemas/Coordinate'
+        resolution:
+          type: integer
+      required:
+        - hash
+        - input
+        - center
+        - resolution
+    
+    ZoneCenterResponse:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: H3 zone hash
+        center:
+          $ref: '#/components/schemas/Coordinate'
+        resolution:
+          type: integer
+      required:
+        - hash
+        - center
+        - resolution
+    
+    ZoneBoundaryResponse:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: H3 zone hash
+        boundary:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coordinate'
+          description: Array of coordinates forming the hexagonal boundary
+        resolution:
+          type: integer
+      required:
+        - hash
+        - boundary
+        - resolution
+    
+    NeighborsResponse:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: Original zone hash
+        k:
+          type: integer
+          description: Ring distance
+        neighbors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneHash'
+        count:
+          type: integer
+          description: Number of neighboring zones
+        resolution:
+          type: integer
+      required:
+        - hash
+        - k
+        - neighbors
+        - count
+        - resolution
+    
+    ZoneInfoResponse:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: H3 zone hash
+        resolution:
+          type: integer
+        center:
+          $ref: '#/components/schemas/Coordinate'
+        boundary:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coordinate'
+        neighbors:
+          type: array
+          items:
+            type: string
+          description: Array of neighboring zone hashes
+        parent:
+          type: string
+          nullable: true
+          description: Parent zone hash (lower resolution)
+        children:
+          type: array
+          items:
+            type: string
+          description: Array of child zone hashes (higher resolution)
+        childrenCount:
+          type: integer
+          description: Total number of children
+      required:
+        - hash
+        - resolution
+        - center
+        - boundary
+        - neighbors
+        - parent
+        - children
+        - childrenCount
+    
+    AreaZonesResponse:
+      type: object
+      properties:
+        boundingBox:
+          type: object
+          properties:
+            minLat:
+              type: number
+            minLng:
+              type: number
+            maxLat:
+              type: number
+            maxLng:
+              type: number
+        resolution:
+          type: integer
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneHash'
+        count:
+          type: integer
+          description: Number of zones
+      required:
+        - boundingBox
+        - resolution
+        - zones
+        - count
+    
+    RadiusZonesResponse:
+      type: object
+      properties:
+        center:
+          $ref: '#/components/schemas/Coordinate'
+        radius:
+          type: number
+          description: Radius in meters
+        resolution:
+          type: integer
+        estimatedK:
+          type: integer
+          description: Estimated k value used for calculation
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneHash'
+        count:
+          type: integer
+          description: Number of zones
+        note:
+          type: string
+          description: Information about the approximation
+      required:
+        - center
+        - radius
+        - resolution
+        - estimatedK
+        - zones
+        - count
+        - note
+    
+    PolygonRequest:
+      type: object
+      properties:
+        polygon:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+            minItems: 2
+            maxItems: 2
+          minItems: 3
+          description: Array of [lat, lng] coordinate pairs
+        resolution:
+          type: integer
+          minimum: 0
+          maximum: 15
+          description: H3 resolution level
+      required:
+        - polygon
+        - resolution
+      example:
+        polygon: [[37.7749, -122.4194], [37.7849, -122.4094], [37.7649, -122.4094], [37.7749, -122.4194]]
+        resolution: 9
+    
+    PolygonZonesResponse:
+      type: object
+      properties:
+        polygon:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        resolution:
+          type: integer
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneHash'
+        count:
+          type: integer
+          description: Number of zones
+      required:
+        - polygon
+        - resolution
+        - zones
+        - count
+    
+    ResolutionInfo:
+      type: object
+      properties:
+        resolution:
+          type: integer
+        avgHexagonEdgeLength:
+          type: string
+          description: Average edge length of hexagons at this resolution
+        avgHexagonArea:
+          type: string
+          description: Average area of hexagons at this resolution
+      required:
+        - resolution
+        - avgHexagonEdgeLength
+        - avgHexagonArea
+    
+    ResolutionsResponse:
+      type: object
+      properties:
+        description:
+          type: string
+        resolutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResolutionInfo'
+        usage:
+          type: object
+          additionalProperties:
+            type: string
+          description: Recommended usage for different resolution ranges
+      required:
+        - description
+        - resolutions
+        - usage
+    
+    ApiDocumentation:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        endpoints:
+          type: object
+          additionalProperties:
+            type: string
+        examples:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - name
+        - description
+        - version
+        - endpoints
+        - examples
+    
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Error message
+      required:
+        - error
+        - message 

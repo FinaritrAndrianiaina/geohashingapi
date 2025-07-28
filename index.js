@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('js-yaml');
+const fs = require('fs');
+const path = require('path');
 const { 
   latLngToCell, 
   cellToLatLng, 
@@ -16,6 +20,10 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Load OpenAPI specification
+const openApiPath = path.join(__dirname, 'openapi.yaml');
+const openApiSpec = YAML.load(fs.readFileSync(openApiPath, 'utf8'));
 
 // Middleware
 app.use(helmet({
@@ -37,6 +45,12 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Swagger UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Geohashing API Documentation'
+}));
 
 // Helper function to validate coordinates
 const isValidCoordinate = (lat, lng) => {
@@ -485,7 +499,8 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🌍 Geohashing API running on port ${PORT}`);
-  console.log(`📍 Visit http://localhost:${PORT} for API documentation`);
+  console.log(`📍 Visit http://localhost:${PORT} for basic API documentation`);
+  console.log(`📚 Visit http://localhost:${PORT}/docs for interactive Swagger documentation`);
   console.log(`🔗 Example: http://localhost:${PORT}/zone/37.7749/-122.4194/9`);
 });
 
