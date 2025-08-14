@@ -1,65 +1,54 @@
-# Use Node.js LTS version for stability
-FROM node:18-alpine AS base
+# Use Node.js 18 LTS as base image
+FROM node:18-alpine AS build
 
 # Set working directory
 WORKDIR /app
 
-# Install security updates and dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Copy package files
+COPY package.json yarn.lock ./
 
-# Copy package files for dependency installation
-COPY package*.json ./
+# Install dependencies (including dev dependencies for build)
+RUN yarn install --frozen-lockfile
 
-# Development stage
-FROM base AS development
-ENV NODE_ENV=development
-RUN npm ci --include=dev
-COPY . .
-CMD ["dumb-init", "npm", "run", "dev"]
+# Copy source code and config files
+COPY src/ src/
+COPY tsconfig.json ./
+COPY openapi.yaml ./
+COPY public/ public/
 
-# Production dependencies stage
-FROM base AS dependencies
-ENV NODE_ENV=production
-RUN npm ci --only=production && npm cache clean --force
+# Build TypeScript
+RUN yarn build
 
 # Production stage
 FROM node:18-alpine AS production
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
 # Set working directory
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy package files
+COPY package.json yarn.lock ./
 
-# Copy application code
-COPY --chown=nextjs:nodejs . .
+# Install only production dependencies
+RUN yarn install --frozen-lockfile --production
 
-# Switch to non-root user
-USER nextjs
+# Copy built application from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/openapi.yaml ./
+COPY --from=build /app/public ./public
 
-# Expose the port
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S geohash -u 1001
+
+# Change ownership of the app directory
+RUN chown -R geohash:nodejs /app
+USER geohash
+
+# Expose port
 EXPOSE 3000
 
-# Set environment variable
+# Set environment to production
 ENV NODE_ENV=production
-ENV PORT=3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "const http = require('http'); \
-               const options = { hostname: 'localhost', port: process.env.PORT || 3000, path: '/api', method: 'GET' }; \
-               const req = http.request(options, (res) => { \
-                 if (res.statusCode === 200) process.exit(0); else process.exit(1); \
-               }); \
-               req.on('error', () => process.exit(1)); \
-               req.end();"
 
 # Start the application
-CMD ["dumb-init", "npm", "start"] 
+CMD ["node", "dist/index.js"] 

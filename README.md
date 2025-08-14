@@ -161,6 +161,15 @@ GET /resolutions
 
 Get details about all H3 resolution levels and their approximate sizes.
 
+## 🔒 Authentication & CORS
+
+- **API keys (optional)**: When `API_KEYS` is set, all API endpoints require a header with your key.
+  - Default header: `x-api-key: <your-key>`
+  - Customize header name with `API_KEY_HEADER`.
+  - Provide multiple keys by comma-separating values in `API_KEYS`.
+
+- **CORS**: Restrict allowed origins by setting `CORS_ALLOWED_ORIGINS` to a comma-separated list of origins. If unset, all origins are allowed.
+
 ## 🎯 Use Cases
 
 ### 1. Location-Based Services
@@ -295,6 +304,12 @@ For production use:
    ```bash
    export PORT=3000
    export NODE_ENV=production
+   # Optional CORS restriction (comma-separated origins). If unset, all origins are allowed.
+   export CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
+   # Optional API key protection (comma-separated keys). If unset, API is public.
+   export API_KEYS="key1,key2,key3"
+   # Optional custom header name for API key (default: x-api-key)
+   export API_KEY_HEADER="x-api-key"
    ```
 
 2. **Process Management:**

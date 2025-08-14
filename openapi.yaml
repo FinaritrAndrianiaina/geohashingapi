@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Geohashing API
   description: |
@@ -17,6 +17,8 @@ info:
     name: Geohashing API
   license:
     name: MIT
+security:
+  - ApiKeyAuth: []
 servers:
   - url: http://localhost:3000
     description: Development server
@@ -25,6 +27,7 @@ paths:
     get:
       summary: Serve web UI
       description: Returns the HTML interface for the API documentation
+      security: []
       responses:
         '200':
           description: HTML page with API documentation
@@ -37,6 +40,7 @@ paths:
     get:
       summary: Get API documentation
       description: Returns JSON documentation with all available endpoints and examples
+      security: []
       responses:
         '200':
           description: API documentation in JSON format
@@ -369,6 +373,8 @@ paths:
     post:
       summary: Get zones intersecting polygon
       description: Get all zones that intersect with a custom polygon
+      security:
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -399,6 +405,8 @@ paths:
     get:
       summary: Get H3 resolution information
       description: Get information about all available H3 resolution levels and their approximate sizes
+      security:
+        - ApiKeyAuth: []
       responses:
         '200':
           description: Resolution information
@@ -738,4 +746,12 @@ components:
           description: Error message
       required:
         - error
-        - message 
+        - message
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        API key required for all endpoints when server is configured with `API_KEYS` environment variable.
+        The header name can be customized via `API_KEY_HEADER`.
